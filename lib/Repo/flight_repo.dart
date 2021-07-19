@@ -17,8 +17,8 @@ class FlightRepo {
         print(error);
       }
     } else {
-      //Return true if something goes wrong.
-      return true;
+      //Return null if something goes wrong.
+      return null;
     }
   }
 }

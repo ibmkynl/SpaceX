@@ -1,7 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:spacex/Bloc/bloc.dart';
 import 'package:spacex/Models/flight_model.dart';
-import 'package:spacex/Repo/flight_repo.dart';
 import 'package:spacex/Widgets/desc_widget.dart';
 import 'package:spacex/Widgets/photo_widget.dart';
 import 'package:spacex/Widgets/video_widget.dart';
@@ -12,67 +13,60 @@ class FlightPage extends StatefulWidget {
 }
 
 class _FlightPageState extends State<FlightPage> {
-  FlightRepo _flightRepo = FlightRepo();
+  FlightBloc _flightBloc;
 
   @override
   void initState() {
+    _flightBloc = FlightBloc();
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.black54,
-        title: Text("Space X"),
-        centerTitle: true,
-      ),
-      body: Container(
-          child: FutureBuilder(
-        future: _flightRepo.getFlightData(),
-        builder: (context, AsyncSnapshot snapshot) {
-          if (!snapshot.hasData ||
-              snapshot.connectionState != ConnectionState.done) {
-            return LinearProgressIndicator();
-          } else if (snapshot.hasError) {
-            return Center(
-              child: TextButton(
-                child: Text("Something goes wrong.. Retry"),
-                onPressed: () {
-                  setState(() {});
-                },
-              ),
-            );
-          } else if (snapshot.data.runtimeType == bool) {
-            //if snapshot.data return true than error text will shown.
-            return Center(
-              child: TextButton(
-                child: Text("Something goes wrong.. Retry"),
-                onPressed: () {
-                  setState(() {});
-                },
-              ),
-            );
-          }
-          FlightModel _flightModel = snapshot.data;
-          return SingleChildScrollView(
-            child: Container(
-              color: Colors.black45,
-              child: Column(
-                children: [
-                  DescriptionWidget(flightModel: _flightModel),
-                  _flightModel.links.youtubeId != null
-                      ? VideoWidget(flightModel: _flightModel)
-                      : Container(),
-                  _flightModel.links.flickr.original.isNotEmpty
-                      ? PhotoWidget(flightModel: _flightModel)
-                      : Container()
-                ],
-              ),
-            ),
-          );
-        },
-      )),
-    );
+        appBar: AppBar(
+          backgroundColor: Colors.black54,
+          title: Text("Space X"),
+          centerTitle: true,
+        ),
+        body: BlocBuilder(
+          bloc: _flightBloc,
+          builder: (context, state) {
+            if (state is FlightInitialState) {
+              _flightBloc.add(InitializeFlight());
+            }
+            if (state is FlightLoadingState) {
+              return LinearProgressIndicator();
+            } else if (state is FlightLoadedState) {
+              FlightModel _flightModel = state.flightModel;
+              return SingleChildScrollView(
+                child: Container(
+                  color: Colors.black45,
+                  child: Column(
+                    children: [
+                      DescriptionWidget(flightModel: _flightModel),
+                      _flightModel.links.youtubeId != null
+                          ? VideoWidget(flightModel: _flightModel)
+                          : Container(),
+                      _flightModel.links.flickr.original.isNotEmpty
+                          ? PhotoWidget(flightModel: _flightModel)
+                          : Container()
+                    ],
+                  ),
+                ),
+              );
+            } else if (state is FlightErrorState) {
+              return Center(
+                child: TextButton(
+                  onPressed: () async {
+                    _flightBloc.add(RetryEvent());
+                  },
+                  child: Text(state.errorMsg),
+                ),
+              );
+            }
+            return Container();
+          },
+        ));
   }
 }
